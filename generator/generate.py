@@ -4,7 +4,7 @@
 Usage:
     python generate.py --csv ../songs/songs.csv --out cards.pdf
     python generate.py --csv ../songs/songs.csv --out cards.pdf \\
-        --base-url https://happydalek.github.io/project-not-hitster/
+        --base-url https://happydalek.github.io/circa/
 """
 
 import argparse
@@ -161,12 +161,12 @@ def generate(csv_path: Path, out_path: Path, base_url: str) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate Not Hitster card PDF")
+    parser = argparse.ArgumentParser(description="Generate Circa card PDF")
     parser.add_argument("--csv", required=True, type=Path, help="Path to songs CSV")
     parser.add_argument("--out", required=True, type=Path, help="Output PDF path")
     parser.add_argument(
         "--base-url",
-        default="https://happydalek.github.io/project-not-hitster/",
+        default="https://happydalek.github.io/circa/",
         help="Deployed PWA base URL (default: GitHub Pages URL)",
     )
     args = parser.parse_args()

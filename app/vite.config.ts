@@ -2,21 +2,21 @@ import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  base: '/project-not-hitster/',
+  base: '/circa/',
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       manifest: {
-        name: 'Not Hitster',
-        short_name: 'Not Hitster',
+        name: 'Circa',
+        short_name: 'Circa',
         description: 'QR song player for the board game',
         theme_color: '#1a1a2e',
         background_color: '#1a1a2e',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: '/project-not-hitster/',
-        scope: '/project-not-hitster/',
+        start_url: '/circa/',
+        scope: '/circa/',
         icons: [
           {
             src: 'icon.svg',

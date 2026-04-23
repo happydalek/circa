@@ -1,6 +1,6 @@
-# project-not-hitster
+# Circa
 
-A Hitster-style board game where each card has a QR code on one side and song metadata (title, artist, year) on the other. Scanning the QR opens a phone app that plays the song **without revealing what it is** — players guess, then flip the card to check.
+A board game where each card has a QR code on one side and song metadata (title, artist, year) on the other. Scanning the QR opens a phone app that plays the song **without revealing what it is** — players guess the year (and artist/title if they dare), then flip the card to check.
 
 ## Components
 
@@ -8,6 +8,18 @@ A Hitster-style board game where each card has a QR code on one side and song me
 - **`generator/`** — Python script that reads a curated song CSV and produces a print-ready PDF of cards (QR front, metadata back, duplex-aligned for a standard A4 home printer).
 - **`songs/songs.csv`** — the curated song list. Columns: `youtube_id,title,artist,year`.
 
-## Status
+## Quickstart
 
-Early scaffolding. See [plan file](../../.claude/plans/we-are-going-to-deep-perlis.md) (local to the machine the repo was created on) for the current design and verification strategy.
+**App (local dev):**
+```bash
+cd app && npm install && npm run dev -- --host
+```
+
+**Card generator:**
+```bash
+cd generator
+pip install -r requirements.txt
+python generate.py --csv ../songs/songs.csv --out cards.pdf
+```
+
+Print `cards.pdf` duplex (long-edge flip), cut along the crop marks, and play.
