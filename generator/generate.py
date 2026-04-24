@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
-"""Generate printable card PDF from songs CSV.
+"""Generate printable card PDF from a playlist or CSV.
 
 Usage:
-    python generate.py --csv ../songs/songs.csv --out cards.pdf
-    python generate.py --csv ../songs/songs.csv --out cards.pdf \\
-        --base-url https://happydalek.github.io/circa/
+    # From a YouTube Music or Spotify playlist (blind — you won't see song names):
+    uv run generate.py --playlist "https://open.spotify.com/playlist/<id>" --out cards.pdf
+    uv run generate.py --playlist "https://music.youtube.com/playlist?list=<id>" --out cards.pdf
+
+    # Mix multiple playlists, deduplicated:
+    uv run generate.py --playlist URL1 --playlist URL2 --out cards.pdf
+
+    # From hand-curated CSV (still works):
+    uv run generate.py --csv ../songs/songs.csv --out cards.pdf
 """
 
 import argparse
@@ -123,17 +129,12 @@ def _draw_back(c: canvas.Canvas, idx: int, song: dict, num: int) -> None:
     c.drawRightString(x + CARD_W - 2 * mm, y + 2 * mm, str(num))
 
 
-def generate(csv_path: Path, out_path: Path, base_url: str) -> None:
+def generate(songs: list[dict], out_path: Path, base_url: str) -> None:
     if not base_url.endswith("/"):
         base_url += "/"
 
-    songs: list[dict] = []
-    with csv_path.open(newline="", encoding="utf-8") as f:
-        for row in csv.DictReader(f):
-            songs.append({k.strip(): v.strip() for k, v in row.items()})
-
     if not songs:
-        sys.exit("No songs found in CSV.")
+        sys.exit("No songs to generate.")
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     c = canvas.Canvas(str(out_path), pagesize=(PAGE_W, PAGE_H))
@@ -162,15 +163,67 @@ def generate(csv_path: Path, out_path: Path, base_url: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate Circa card PDF")
-    parser.add_argument("--csv", required=True, type=Path, help="Path to songs CSV")
+    parser.add_argument(
+        "--csv", type=Path, default=None,
+        help="Path to songs CSV (optional if --playlist is given)",
+    )
+    parser.add_argument(
+        "--playlist", action="append", dest="playlists", metavar="URL", default=[],
+        help=(
+            "Playlist URL to fetch songs from (repeatable). "
+            "Supports YouTube Music, YouTube, and Spotify."
+        ),
+    )
     parser.add_argument("--out", required=True, type=Path, help="Output PDF path")
     parser.add_argument(
         "--base-url",
         default="https://happydalek.github.io/circa/",
         help="Deployed PWA base URL (default: GitHub Pages URL)",
     )
+    parser.add_argument(
+        "--cache-dir",
+        type=Path,
+        default=Path.home() / ".cache" / "circa",
+        help="Directory for caching fetched playlist data (default: ~/.cache/circa)",
+    )
+    parser.add_argument(
+        "--no-cache", action="store_true",
+        help="Ignore and overwrite any cached playlist data",
+    )
     args = parser.parse_args()
-    generate(args.csv, args.out, args.base_url)
+
+    if not args.csv and not args.playlists:
+        parser.error("Provide at least --csv PATH or one --playlist URL.")
+
+    songs: list[dict] = []
+
+    # 1. CSV songs first (hand-curated tracks take precedence on dedup)
+    if args.csv:
+        with args.csv.open(newline="", encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                songs.append({k.strip(): v.strip() for k, v in row.items()})
+
+    # 2. Playlist songs
+    if args.playlists:
+        from fetcher import fetch_playlist  # local import; only needed when used
+        cache_dir = None if args.no_cache else args.cache_dir
+        for url in args.playlists:
+            songs.extend(fetch_playlist(url, cache_dir))
+
+    # 3. Deduplicate by youtube_id, preserving order (CSV wins on conflict)
+    seen: set[str] = set()
+    deduped: list[dict] = []
+    for song in songs:
+        vid = song.get("youtube_id", "")
+        if vid and vid not in seen:
+            seen.add(vid)
+            deduped.append(song)
+    songs = deduped
+
+    if not songs:
+        sys.exit("No songs found after fetching/deduplication.")
+
+    generate(songs, args.out, args.base_url)
 
 
 if __name__ == "__main__":

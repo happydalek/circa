@@ -15,7 +15,20 @@ A board game where each card has a QR code on one side and song metadata (title,
 cd app && npm install && npm run dev -- --host
 ```
 
-**Card generator:**
+**Card generator — from a playlist (blind, recommended):**
+```bash
+cd generator
+# Spotify playlist
+uv run generate.py --playlist "https://open.spotify.com/playlist/<id>" --out cards.pdf
+# YouTube Music playlist
+uv run generate.py --playlist "https://music.youtube.com/playlist?list=<id>" --out cards.pdf
+# Mix multiple playlists (deduplicated)
+uv run generate.py --playlist URL1 --playlist URL2 --out cards.pdf
+```
+
+Songs are fetched and the PDF generated without printing titles — you won't know the playlist contents until you flip a card. Fetched data is cached in `~/.cache/circa/` so re-runs are instant; pass `--no-cache` to refresh.
+
+**Card generator — from a hand-curated CSV:**
 ```bash
 cd generator
 uv run generate.py --csv ../songs/songs.csv --out cards.pdf
