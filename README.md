@@ -18,8 +18,7 @@ cd app && npm install && npm run dev -- --host
 **Card generator:**
 ```bash
 cd generator
-pip install -r requirements.txt
-python generate.py --csv ../songs/songs.csv --out cards.pdf
+uv run generate.py --csv ../songs/songs.csv --out cards.pdf
 ```
 
 Print `cards.pdf` duplex (long-edge flip), cut along the crop marks, and play.
