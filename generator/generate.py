@@ -177,13 +177,13 @@ def main() -> None:
     parser.add_argument("--out", required=True, type=Path, help="Output PDF path")
     parser.add_argument(
         "--base-url",
-        default="https://happydalek.github.io/circa/",
+        default="https://happydalek.github.io/hitster-card-maker/",
         help="Deployed PWA base URL (default: GitHub Pages URL)",
     )
     parser.add_argument(
         "--cache-dir",
         type=Path,
-        default=Path.home() / ".cache" / "circa",
+        default=Path.home() / ".cache" / "hitster-card-maker",
         help="Directory for caching fetched playlist data (default: ~/.cache/circa)",
     )
     parser.add_argument(

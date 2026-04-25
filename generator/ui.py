@@ -52,7 +52,7 @@ _RED = "#e63946"
 
 class App(tk.Tk):
 
-    _BASE_URL = "https://happydalek.github.io/circa/"
+    _BASE_URL = "https://happydalek.github.io/hitster-card-maker/"
 
     def __init__(self) -> None:
         super().__init__()
@@ -254,7 +254,7 @@ class App(tk.Tk):
 
             cache_dir = (
                 None if self._no_cache_var.get()
-                else Path.home() / ".cache" / "circa"
+                else Path.home() / ".cache" / "hitster-card-maker"
             )
 
             for url in urls:

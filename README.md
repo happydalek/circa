@@ -1,16 +1,25 @@
-# Circa
+# Hitster Card Maker
 
-A board game where each card has a QR code on one side and song metadata (title, artist, year) on the other. Scanning the QR opens a phone app that plays the song **without revealing what it is** — players guess the year (and artist/title if they dare), then flip the card to check.
+Build custom card decks for [Hitster](https://www.hitstergame.com/) from any Spotify or YouTube Music playlist.
+
+Each card has a QR code on one side and the song's year, title, and artist on the other — just like official Hitster cards, but with songs you actually want to play.
+
+## How it works
+
+1. **Pick playlists** — choose any Spotify or YouTube Music playlists without looking at the tracklist.
+2. **Generate cards** — the tool fetches the songs, finds YouTube video IDs, and produces a print-ready PDF.
+3. **Print & play** — print duplex, cut along the crop marks, shuffle into your Hitster deck (or play standalone).
+4. **Scan & listen** — scanning a QR code opens the companion phone app, which plays the song on YouTube with the title/artist hidden until you're ready to reveal.
 
 ## Components
 
-- **`app/`** — installable PWA. Scans QR codes with the phone camera, then plays the linked song through a YouTube IFrame player with an opaque cover UI hiding title, thumbnail, and channel until the players are ready.
-- **`generator/`** — fetches songs from Spotify / YouTube Music playlists and produces a print-ready PDF of cards (QR front, metadata back, duplex-aligned for a standard A4 home printer). Has both a CLI (`generate.py`) and a desktop UI (`ui.py`).
-- **`songs/songs.csv`** — optional hand-curated song list. Columns: `youtube_id,title,artist,year`.
+- **`app/`** — installable PWA (phone app). Scans QR codes, plays the linked YouTube video behind an opaque cover until players tap Reveal.
+- **`generator/`** — fetches songs from Spotify / YouTube Music playlists and produces a print-ready A4 PDF. Has a desktop UI (`ui.py`) and a CLI (`generate.py`).
+- **`songs/songs.csv`** — optional hand-curated song list you can mix in. Columns: `youtube_id,title,artist,year`.
 
 ## Quickstart
 
-**App (local dev):**
+**Phone app (local dev):**
 ```bash
 cd app && npm install && npm run dev -- --host
 ```
@@ -20,25 +29,31 @@ cd app && npm install && npm run dev -- --host
 cd generator && uv run ui.py
 ```
 
-Paste playlist URLs, pick an output path, click **Generate PDF**. Progress is shown without revealing song titles.
+Paste playlist URLs, pick an output path, click **Generate PDF**. Song titles are never shown during generation so the deck stays a surprise.
 
-**Card generator — CLI, from a playlist (blind, recommended):**
+**Card generator — CLI:**
 ```bash
 cd generator
-# Spotify playlist
+
+# From a Spotify playlist
 uv run generate.py --playlist "https://open.spotify.com/playlist/<id>" --out cards.pdf
-# YouTube Music playlist
+
+# From a YouTube Music playlist
 uv run generate.py --playlist "https://music.youtube.com/playlist?list=<id>" --out cards.pdf
-# Mix multiple playlists (deduplicated)
+
+# Mix multiple playlists (deduplicated automatically)
 uv run generate.py --playlist URL1 --playlist URL2 --out cards.pdf
+
+# Mix with a hand-curated CSV
+uv run generate.py --csv ../songs/songs.csv --playlist URL1 --out cards.pdf
 ```
 
-Songs are fetched and the PDF generated without printing titles — you won't know the playlist contents until you flip a card. Fetched data is cached in `~/.cache/circa/` so re-runs are instant; pass `--no-cache` to refresh.
-
-**Card generator — from a hand-curated CSV:**
-```bash
-cd generator
-uv run generate.py --csv ../songs/songs.csv --out cards.pdf
-```
+Fetched playlist data is cached in `~/.cache/hitster-card-maker/` so re-runs are instant. Pass `--no-cache` to force a fresh fetch.
 
 Print `cards.pdf` duplex (long-edge flip), cut along the crop marks, and play.
+
+## Notes
+
+- No Spotify API key needed — song metadata is scraped from the public embed page.
+- Years are sourced from YouTube Music album data (original release year, not remaster year).
+- The phone app is deployed at `https://happydalek.github.io/hitster-card-maker/` via GitHub Actions.
