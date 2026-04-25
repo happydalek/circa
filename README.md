@@ -15,7 +15,6 @@ Each card has a QR code on one side and the song's year, title, and artist on th
 
 - **`app/`** — installable PWA (phone app). Scans QR codes, plays the linked YouTube video behind an opaque cover until players tap Reveal.
 - **`generator/`** — fetches songs from Spotify / YouTube Music playlists and produces a print-ready A4 PDF. Has a desktop UI (`ui.py`) and a CLI (`generate.py`).
-- **`songs/songs.csv`** — optional hand-curated song list you can mix in. Columns: `youtube_id,title,artist,year`.
 
 ## Quickstart
 
@@ -44,8 +43,8 @@ uv run generate.py --playlist "https://music.youtube.com/playlist?list=<id>" --o
 # Mix multiple playlists (deduplicated automatically)
 uv run generate.py --playlist URL1 --playlist URL2 --out cards.pdf
 
-# Mix with a hand-curated CSV
-uv run generate.py --csv ../songs/songs.csv --playlist URL1 --out cards.pdf
+# Mix with a hand-curated CSV (optional)
+uv run generate.py --csv my_songs.csv --playlist URL1 --out cards.pdf
 ```
 
 Fetched playlist data is cached in `~/.cache/hitster-card-maker/` so re-runs are instant. Pass `--no-cache` to force a fresh fetch.
