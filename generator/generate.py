@@ -162,7 +162,7 @@ def generate(songs: list[dict], out_path: Path, base_url: str) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate Circa card PDF")
+    parser = argparse.ArgumentParser(description="Generate Hitster Card Maker PDF")
     parser.add_argument(
         "--csv", type=Path, default=None,
         help="Path to songs CSV (optional if --playlist is given)",
@@ -184,7 +184,7 @@ def main() -> None:
         "--cache-dir",
         type=Path,
         default=Path.home() / ".cache" / "hitster-card-maker",
-        help="Directory for caching fetched playlist data (default: ~/.cache/circa)",
+        help="Directory for caching fetched playlist data (default: ~/.cache/hitster-card-maker)",
     )
     parser.add_argument(
         "--no-cache", action="store_true",

@@ -8,8 +8,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       manifest: {
-        name: 'Circa',
-        short_name: 'Circa',
+        name: 'Hitster Card Maker',
+        short_name: 'Hitster',
         description: 'QR song player for Hitster custom decks',
         theme_color: '#1a1a2e',
         background_color: '#1a1a2e',

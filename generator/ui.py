@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Circa card generator — desktop UI.
+"""Hitster Card Maker card generator — desktop UI.
 
 Run from the generator/ directory:
     uv run ui.py
@@ -56,7 +56,7 @@ class App(tk.Tk):
 
     def __init__(self) -> None:
         super().__init__()
-        self.title("Circa — Card Generator")
+        self.title("Hitster Card Maker — Card Generator")
         self.configure(bg=_BG)
         self.minsize(560, 520)
         self._queue: "queue.Queue[str]" = queue.Queue()
@@ -70,7 +70,7 @@ class App(tk.Tk):
         # ── Header ────────────────────────────────────────────────────────────
         tk.Label(
             self,
-            text="  ♪  Circa — Card Generator",
+            text="  ♪  Hitster Card Maker — Card Generator",
             font=("Helvetica", 13, "bold"),
             bg=_DARK, fg="white",
             anchor="w", pady=10,

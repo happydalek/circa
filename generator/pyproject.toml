@@ -1,7 +1,7 @@
 [project]
-name = "circa-generator"
+name = "hitster-card-maker"
 version = "0.1.0"
-description = "Circa card PDF generator"
+description = "Hitster Card Maker PDF generator"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
