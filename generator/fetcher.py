@@ -236,7 +236,7 @@ def _fetch_spotify(playlist_id: str, cache_dir: Path | None) -> list[dict]:
 
     yt = YTMusic()
     songs: list[dict] = []
-    skipped: list[str] = []
+    skipped: list[int] = []
     total = len(track_list)
 
     for i, item in enumerate(track_list, 1):
@@ -248,14 +248,14 @@ def _fetch_spotify(playlist_id: str, cache_dir: Path | None) -> list[dict]:
         artist = subtitle.split(",")[0].strip() if subtitle else "Unknown"
 
         if not title:
-            skipped.append(f"track {i} (no title)")
+            skipped.append(i)
             continue
 
         video_id, year = _search_year_and_id(yt, title, artist)
         time.sleep(0.15)
 
         if not video_id:
-            skipped.append(f"{artist} – {title}")
+            skipped.append(i)
             continue
 
         songs.append({
@@ -268,9 +268,11 @@ def _fetch_spotify(playlist_id: str, cache_dir: Path | None) -> list[dict]:
     print()  # end progress line
 
     if skipped:
-        print(f"  {len(skipped)} track(s) skipped (no YouTube match):")
-        for s in skipped:
-            print(f"    – {s}")
+        positions = ", ".join(str(i) for i in skipped)
+        print(
+            f"  {len(skipped)} track(s) skipped "
+            f"(missing metadata or no YouTube match). Positions: {positions}"
+        )
 
     _cache_save(cache_dir, cache_key, songs)
     return songs
