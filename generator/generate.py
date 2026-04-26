@@ -24,6 +24,8 @@ try:
     from reportlab.lib import colors
     from reportlab.lib.units import mm
     from reportlab.lib.utils import ImageReader
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
     from reportlab.pdfgen import canvas
 except ImportError as e:
     sys.exit(f"Missing dependency: {e}\nRun: pip install -r requirements.txt")
@@ -36,6 +38,68 @@ from layout import (
 CROP_LEN = 3 * mm
 CROP_GAP = 1 * mm
 CARDS_PER_PAGE = COLS * ROWS
+INK = colors.black
+QR_RING_COLORS = [
+    "#f3c43f",
+    "#ed1e79",
+    "#22a7d8",
+    "#54c8c4",
+    "#7c3c98",
+]
+ANSWER_PALETTES = [
+    ("#f3c85e", "#eba45b"),
+    ("#c64d83", "#d96c9a"),
+    ("#d95e68", "#e57f63"),
+    ("#efbd62", "#e9985f"),
+    ("#765793", "#9472a5"),
+    ("#42a8c3", "#6ac0cf"),
+    ("#8acbc4", "#67b8c1"),
+]
+
+
+def _register_fonts() -> tuple[str, str, str, str]:
+    candidates = [
+        (
+            Path(r"C:\Windows\Fonts\arial.ttf"),
+            Path(r"C:\Windows\Fonts\arialbd.ttf"),
+            Path(r"C:\Windows\Fonts\ariali.ttf"),
+            Path(r"C:\Windows\Fonts\arialbi.ttf"),
+        ),
+        (
+            Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+            Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
+            Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf"),
+            Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf"),
+        ),
+        (
+            Path("/Library/Fonts/Arial.ttf"),
+            Path("/Library/Fonts/Arial Bold.ttf"),
+            Path("/Library/Fonts/Arial Italic.ttf"),
+            Path("/Library/Fonts/Arial Bold Italic.ttf"),
+        ),
+    ]
+    for regular_path, bold_path, italic_path, bold_italic_path in candidates:
+        font_paths = (regular_path, bold_path, italic_path, bold_italic_path)
+        if all(p.exists() for p in font_paths):
+            try:
+                pdfmetrics.registerFont(TTFont("HitsterRegular", str(regular_path)))
+                pdfmetrics.registerFont(TTFont("HitsterBold", str(bold_path)))
+                pdfmetrics.registerFont(TTFont("HitsterItalic", str(italic_path)))
+                pdfmetrics.registerFont(
+                    TTFont("HitsterBoldItalic", str(bold_italic_path))
+                )
+                return (
+                    "HitsterRegular",
+                    "HitsterBold",
+                    "HitsterItalic",
+                    "HitsterBoldItalic",
+                )
+            except Exception:
+                pass
+    return "Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique"
+
+
+FONT_REGULAR, FONT_BOLD, FONT_ITALIC, FONT_BOLD_ITALIC = _register_fonts()
 
 
 def _make_qr(data: str) -> ImageReader:
@@ -68,65 +132,216 @@ def _crop_marks(c: canvas.Canvas, x: float, y: float) -> None:
         c.line(cx, cy + vd * CROP_GAP, cx, cy + vd * (CROP_GAP + CROP_LEN))
 
 
+def _color_at(start_hex: str, end_hex: str, t: float) -> colors.Color:
+    start = colors.HexColor(start_hex)
+    end = colors.HexColor(end_hex)
+    return colors.Color(
+        start.red + (end.red - start.red) * t,
+        start.green + (end.green - start.green) * t,
+        start.blue + (end.blue - start.blue) * t,
+    )
+
+
+def _answer_palette(num: int) -> tuple[str, str]:
+    return ANSWER_PALETTES[(num - 1) % len(ANSWER_PALETTES)]
+
+
+def _diagonal_gradient(
+    c: canvas.Canvas,
+    x: float,
+    y: float,
+    w: float,
+    h: float,
+    start_hex: str,
+    end_hex: str,
+) -> None:
+    c.saveState()
+    clip = c.beginPath()
+    clip.rect(x, y, w, h)
+    c.clipPath(clip, stroke=0, fill=0)
+
+    steps = 160
+    span = w + h
+    strip_w = span / steps
+    start_x = x - h
+    for i in range(steps):
+        sx = start_x + i * strip_w
+        path = c.beginPath()
+        path.moveTo(sx, y)
+        path.lineTo(sx + strip_w + 0.8, y)
+        path.lineTo(sx + strip_w + h + 0.8, y + h)
+        path.lineTo(sx + h, y + h)
+        path.close()
+        c.setFillColor(_color_at(start_hex, end_hex, i / (steps - 1)))
+        c.drawPath(path, fill=1, stroke=0)
+    c.restoreState()
+
+
+def _fit_single_line(
+    c: canvas.Canvas,
+    text: str,
+    font: str,
+    size: float,
+    min_size: float,
+    max_w: float,
+) -> tuple[str, float]:
+    line = " ".join(str(text).split()) or "-"
+    current_size = size
+    while current_size >= min_size:
+        if c.stringWidth(line, font, current_size) <= max_w:
+            return line, current_size
+        current_size -= 0.25
+    return _ellipsize(c, line, font, min_size, max_w), min_size
+
+
+def _wrap_words(c: canvas.Canvas, text: str, font: str, size: float, max_w: float) -> list[str]:
+    words = " ".join(str(text).split()).split()
+    if not words:
+        return ["-"]
+
+    lines: list[str] = []
+    current = ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        if not current or c.stringWidth(candidate, font, size) <= max_w:
+            current = candidate
+        else:
+            lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    return lines
+
+
+def _fit_text_block(
+    c: canvas.Canvas,
+    text: str,
+    font: str,
+    size: float,
+    min_size: float,
+    max_w: float,
+    max_lines: int,
+) -> tuple[list[str], float]:
+    current_size = size
+    while current_size >= min_size:
+        lines = _wrap_words(c, text, font, current_size, max_w)
+        if len(lines) <= max_lines:
+            return lines, current_size
+        current_size -= 0.25
+
+    lines = _wrap_words(c, text, font, min_size, max_w)
+    if len(lines) > max_lines:
+        lines = lines[: max_lines - 1] + [" ".join(lines[max_lines - 1:])]
+    return [
+        line
+        if c.stringWidth(line, font, min_size) <= max_w
+        else _ellipsize(c, line, font, min_size, max_w)
+        for line in lines
+    ], min_size
+
+
+def _draw_centered_lines(
+    c: canvas.Canvas,
+    lines: list[str],
+    font: str,
+    size: float,
+    cx: float,
+    center_y: float,
+    leading: float,
+) -> None:
+    c.setFont(font, size)
+    first_y = center_y + (len(lines) - 1) * leading / 2
+    for i, line in enumerate(lines):
+        c.drawCentredString(cx, first_y - i * leading, line)
+
+
+def _draw_optically_centered(
+    c: canvas.Canvas,
+    text: str,
+    font: str,
+    size: float,
+    cx: float,
+    center_y: float,
+) -> None:
+    ascent = pdfmetrics.getAscent(font, size)
+    descent = pdfmetrics.getDescent(font, size)
+    baseline_y = center_y - (ascent + descent) / 2
+    c.setFont(font, size)
+    c.drawCentredString(cx, baseline_y, text)
+
+
 def _draw_front(c: canvas.Canvas, idx: int, qr: ImageReader, num: int) -> None:
     x, y = front_origin(idx)
-    _crop_marks(c, x, y)
 
-    c.setFillColor(colors.white)
+    c.setFillColor(INK)
     c.rect(x, y, CARD_W, CARD_H, fill=1, stroke=0)
 
-    qr_size = min(CARD_W, CARD_H) * 0.78
+    cx = x + CARD_W / 2
+    cy = y + CARD_H / 2
+
+    ring_radii = [25.4 * mm, 23.1 * mm, 20.9 * mm, 18.6 * mm, 16.4 * mm]
+    for ring_idx, radius in enumerate(ring_radii):
+        ring_color = QR_RING_COLORS[(num + ring_idx) % len(QR_RING_COLORS)]
+        c.setStrokeColor(colors.HexColor(ring_color))
+        c.setLineWidth(0.55)
+        c.circle(cx, cy, radius, fill=0, stroke=1)
+
+    qr_size = CARD_W * 0.48
     qr_x = x + (CARD_W - qr_size) / 2
-    qr_y = y + (CARD_H - qr_size) / 2 + 3 * mm
+    qr_y = cy - qr_size / 2
     c.drawImage(qr, qr_x, qr_y, qr_size, qr_size, mask="auto")
 
-    c.setFillColor(colors.lightgrey)
-    c.setFont("Helvetica", 6)
-    c.drawRightString(x + CARD_W - 2 * mm, y + 2 * mm, str(num))
+    _crop_marks(c, x, y)
 
 
-def _fit_string(c: canvas.Canvas, text: str, font: str, size: float, max_w: float) -> str:
-    while c.stringWidth(text, font, size) > max_w and len(text) > 6:
-        text = text[:-4] + "\u2026"
-    return text
+def _ellipsize(c: canvas.Canvas, text: str, font: str, size: float, max_w: float) -> str:
+    suffix = "..."
+    text = str(text).strip()
+    while text and c.stringWidth(text + suffix, font, size) > max_w:
+        text = text[:-1].rstrip()
+    return text + suffix if text else suffix
 
 
 def _draw_back(c: canvas.Canvas, idx: int, song: dict, num: int) -> None:
     x, y = back_origin(idx)
-    _crop_marks(c, x, y)
 
-    c.setFillColor(colors.HexColor("#1a1a2e"))
-    c.rect(x, y, CARD_W, CARD_H, fill=1, stroke=0)
+    start_color, end_color = _answer_palette(num)
+    _diagonal_gradient(c, x, y, CARD_W, CARD_H, start_color, end_color)
 
     cx = x + CARD_W / 2
-    max_w = CARD_W - 8 * mm
+    max_w = CARD_W - 7 * mm
 
-    # Year
-    c.setFillColor(colors.HexColor("#e63946"))
-    c.setFont("Helvetica-Bold", 38)
-    c.drawCentredString(cx, y + CARD_H * 0.57, song["year"])
+    artist_lines, artist_size = _fit_text_block(
+        c, song["artist"], FONT_BOLD, 13.0, 6.0, max_w, 2
+    )
+    c.setFillColor(INK)
+    _draw_centered_lines(
+        c,
+        artist_lines,
+        FONT_BOLD,
+        artist_size,
+        cx,
+        y + CARD_H - 11.0 * mm,
+        artist_size + 2.0,
+    )
 
-    # Divider
-    c.setStrokeColor(colors.HexColor("#2a2a4e"))
-    c.setLineWidth(0.5)
-    c.line(x + 8 * mm, y + CARD_H * 0.52, x + CARD_W - 8 * mm, y + CARD_H * 0.52)
+    year = str(song["year"]).strip()
+    _draw_optically_centered(c, year, FONT_BOLD_ITALIC, 48, cx, y + CARD_H / 2)
 
-    # Title
-    c.setFillColor(colors.white)
-    c.setFont("Helvetica-Bold", 11)
-    title = _fit_string(c, song["title"], "Helvetica-Bold", 11, max_w)
-    c.drawCentredString(cx, y + CARD_H * 0.38, title)
+    title_lines, title_size = _fit_text_block(
+        c, song["title"], FONT_ITALIC, 13.0, 6.0, max_w, 2
+    )
+    _draw_centered_lines(
+        c,
+        title_lines,
+        FONT_ITALIC,
+        title_size,
+        cx,
+        y + 13.6 * mm,
+        title_size + 2.0,
+    )
 
-    # Artist
-    c.setFillColor(colors.HexColor("#9ca3af"))
-    c.setFont("Helvetica", 9)
-    artist = _fit_string(c, song["artist"], "Helvetica", 9, max_w)
-    c.drawCentredString(cx, y + CARD_H * 0.28, artist)
-
-    # Card number
-    c.setFillColor(colors.HexColor("#3a3a5e"))
-    c.setFont("Helvetica", 6)
-    c.drawRightString(x + CARD_W - 2 * mm, y + 2 * mm, str(num))
+    _crop_marks(c, x, y)
 
 
 def generate(songs: list[dict], out_path: Path, base_url: str) -> None:

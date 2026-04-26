@@ -3,10 +3,10 @@ from reportlab.lib.units import mm
 
 PAGE_W, PAGE_H = A4
 
-CARD_W = 63 * mm
-CARD_H = 88 * mm
+CARD_W = 66 * mm
+CARD_H = 66 * mm
 COLS = 3
-ROWS = 3
+ROWS = 4
 
 GRID_W = COLS * CARD_W
 GRID_H = ROWS * CARD_H
