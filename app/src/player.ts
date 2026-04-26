@@ -20,16 +20,17 @@ interface YTPlayer {
   playVideo(): void
   pauseVideo(): void
   getPlayerState(): number
+  destroy(): void
 }
 
-export function renderPlayer(container: HTMLElement, videoId: string): void {
+export function renderPlayer(container: HTMLElement, videoId: string): () => void {
   if (!videoId) {
     container.innerHTML = `
       <div class="page">
         <p>No video ID found. <a href="#/">Go home</a></p>
       </div>
     `
-    return
+    return () => undefined
   }
 
   container.innerHTML = `
@@ -53,11 +54,14 @@ export function renderPlayer(container: HTMLElement, videoId: string): void {
 
   let ytPlayer: YTPlayer | null = null
   let isPlaying = false
+  let disposed = false
 
   const btnPlay = document.getElementById('btn-play') as HTMLButtonElement
   const btnReveal = document.getElementById('btn-reveal') as HTMLButtonElement
 
   function initPlayer(): void {
+    if (disposed || ytPlayer || !document.getElementById('yt-player')) return
+
     ytPlayer = new window.YT.Player('yt-player', {
       videoId,
       playerVars: {
@@ -79,6 +83,10 @@ export function renderPlayer(container: HTMLElement, videoId: string): void {
     })
   }
 
+  const apiReadyHandler = (): void => {
+    initPlayer()
+  }
+
   btnPlay.addEventListener('click', () => {
     const p = ytPlayer
     if (!p) return
@@ -94,11 +102,22 @@ export function renderPlayer(container: HTMLElement, videoId: string): void {
   if (window.YT?.Player) {
     initPlayer()
   } else {
-    window.onYouTubeIframeAPIReady = initPlayer
+    window.onYouTubeIframeAPIReady = apiReadyHandler
     if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
       const script = document.createElement('script')
       script.src = 'https://www.youtube.com/iframe_api'
       document.head.appendChild(script)
+    }
+  }
+
+  return () => {
+    disposed = true
+    if (window.onYouTubeIframeAPIReady === apiReadyHandler) {
+      window.onYouTubeIframeAPIReady = () => undefined
+    }
+    if (ytPlayer) {
+      ytPlayer.destroy()
+      ytPlayer = null
     }
   }
 }

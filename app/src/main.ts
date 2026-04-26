@@ -20,7 +20,7 @@ function route(): void {
   if (hash.startsWith('#/play')) {
     const q = hash.indexOf('?')
     const params = new URLSearchParams(q >= 0 ? hash.slice(q + 1) : '')
-    renderPlayer(app, params.get('v') ?? '')
+    cleanup = renderPlayer(app, params.get('v') ?? '')
   } else if (hash === '#/scan') {
     cleanup = renderScanner(app)
   } else {
