@@ -7,6 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "pillow>=12.2.0",
     "qrcode>=8.2",
+    "requests>=2.33.1",
     "reportlab>=4.4.10",
     "ytmusicapi>=1.10.0",
 ]
